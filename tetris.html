@@ -808,13 +808,14 @@
             document.getElementById('btnDown').addEventListener('click', dropPiece);
 
             // Touch swipe
-            let touchStartX, touchStartY;
+            let touchStartX = null;
+            let touchStartY = null;
             canvas.addEventListener('touchstart', (e) => {
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
             });
             canvas.addEventListener('touchend', (e) => {
-                if (!touchStartX || !touchStartY) return;
+                if (touchStartX == null || touchStartY == null) return;
                 const dx = e.changedTouches[0].clientX - touchStartX;
                 const dy = e.changedTouches[0].clientY - touchStartY;
                 if (Math.abs(dx) > Math.abs(dy)) {
@@ -824,6 +825,9 @@
                     if (dy > 30) dropPiece();
                     else if (dy < -30) rotatePiece();
                 }
+
+                touchStartX = null;
+                touchStartY = null;
             });
 
             drawEmptyBoard();
@@ -1137,6 +1141,7 @@
                 score += 2;
             }
             lockPiece();
+            updateDisplay();
         }
 
         function lockPiece() {
@@ -1217,6 +1222,13 @@
                 return;
             }
 
+            if (e.key === 'p' || e.key === 'P') {
+                togglePause();
+                return;
+            }
+
+            if (isPaused) return;
+
             switch (e.key) {
                 case 'ArrowLeft':
                     e.preventDefault();
@@ -1239,10 +1251,6 @@
                 case ' ':
                     e.preventDefault();
                     hardDrop();
-                    break;
-                case 'p':
-                case 'P':
-                    togglePause();
                     break;
             }
         }

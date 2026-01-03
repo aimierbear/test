@@ -1,0 +1,6 @@
+{
+    "scripts": {
+        "setup": "",
+        "run": "pkill -f 'serve.*brasilia' || true && (sleep 1 && open http://localhost:3000/tetris.html) & npx serve -l 3000"
+    }
+}

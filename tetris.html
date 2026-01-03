@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-[INPUT]: (Keyboard/Touch Events, UI Buttons) - 用户键盘、触控与按钮输入。
-[OUTPUT]: (Canvas Render, HUD Updates) - 画布渲染与信息面板更新。
+[INPUT]: (Keyboard/Touch Events, UI Buttons, Audio Controls) - 用户键盘、触控与按钮输入及音效控制。
+[OUTPUT]: (Canvas Render, HUD Updates, WebAudio SFX, localStorage HighScore) - 画布渲染、信息面板更新、音效播放与高分持久化。
 [POS]: 位于项目根目录的单文件前端实现，负责俄罗斯方块的主流程与渲染。
 -->
 <html lang="zh-CN">
@@ -19,7 +19,7 @@
             --neon-purple: #d300c5;
             --neon-yellow: #f9f002;
             --deep-black: #0d0221;
-            --grid-color: rgba(5, 217, 232, 0.15);
+            --grid-color: rgba(5, 217, 232, 0.08);
             --scanline-opacity: 0.03;
         }
 
@@ -46,16 +46,16 @@
         @keyframes neonPulse {
             0%, 100% {
                 text-shadow:
-                    0 0 5px var(--neon-pink),
-                    0 0 10px var(--neon-pink),
-                    0 0 20px var(--neon-pink),
-                    0 0 40px var(--neon-pink);
+                    0 0 4px var(--neon-pink),
+                    0 0 8px var(--neon-pink),
+                    0 0 15px var(--neon-pink),
+                    0 0 25px var(--neon-pink);
             }
             50% {
                 text-shadow:
-                    0 0 2px var(--neon-pink),
-                    0 0 5px var(--neon-pink),
-                    0 0 10px var(--neon-pink),
+                    0 0 3px var(--neon-pink),
+                    0 0 6px var(--neon-pink),
+                    0 0 12px var(--neon-pink),
                     0 0 20px var(--neon-pink);
             }
         }
@@ -123,7 +123,7 @@
             background-size: 100% 100%, 50px 50px, 50px 50px;
             transform: rotateX(60deg) translateZ(-100px) translateY(-50%);
             transform-origin: center center;
-            animation: gridScroll 2s linear infinite;
+            animation: gridScroll 8s linear infinite;
             z-index: 0;
         }
 
@@ -141,11 +141,11 @@
 
         .rain-drop {
             position: absolute;
-            width: 2px;
-            height: 80px;
+            width: 1px;
+            height: 60px;
             background: linear-gradient(to bottom, transparent, var(--neon-cyan));
             animation: rainDrop 1.5s linear infinite;
-            opacity: 0.3;
+            opacity: 0.12;
         }
 
         /* CRT Scanlines */
@@ -184,6 +184,7 @@
             z-index: 10;
             display: flex;
             gap: 0;
+            align-items: stretch;
             animation: screenOn 0.5s ease-out;
         }
 
@@ -227,7 +228,7 @@
             font-weight: 900;
             color: var(--neon-pink);
             letter-spacing: 12px;
-            animation: neonPulse 2s ease-in-out infinite, flicker 4s linear infinite;
+            animation: neonPulse 5s ease-in-out infinite, flicker 8s linear infinite;
             position: relative;
         }
 
@@ -277,13 +278,16 @@
         .side-panel {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            padding: 15px;
+            gap: 8px;
+            padding: 12px;
             background: linear-gradient(180deg, #1a1a2e 0%, #0f0f23 100%);
             border: 4px solid #2a2a4e;
             border-left: none;
             border-radius: 0 8px 8px 0;
-            min-width: 200px;
+            min-width: 180px;
+            max-width: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
             box-shadow:
                 inset -20px 0 40px rgba(0, 0, 0, 0.5),
                 0 0 30px rgba(5, 217, 232, 0.1);
@@ -294,7 +298,7 @@
             background: #0a0a15;
             border: 2px solid #2a2a4e;
             border-radius: 6px;
-            padding: 12px 15px;
+            padding: 8px 12px;
             position: relative;
             overflow: hidden;
         }
@@ -322,7 +326,7 @@
 
         .info-display .value {
             font-family: 'Orbitron', monospace;
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: var(--neon-yellow);
             text-shadow:
@@ -330,6 +334,71 @@
                 0 0 10px var(--neon-yellow),
                 0 0 20px var(--neon-yellow);
             letter-spacing: 2px;
+        }
+
+        /* Compact Stats Panel */
+        .stats-panel {
+            background: #0a0a15;
+            border: 2px solid #2a2a4e;
+            border-radius: 6px;
+            padding: 10px 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent);
+            pointer-events: none;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .stats-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .stats-row .label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.6rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px var(--neon-cyan);
+        }
+
+        .stats-row .value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 5px var(--neon-yellow), 0 0 10px var(--neon-yellow);
+            letter-spacing: 1px;
+        }
+
+        .stats-row.score-row .value {
+            font-size: 1.4rem;
+        }
+
+        .stats-row.highscore-row .label {
+            color: var(--neon-purple);
+            text-shadow: 0 0 5px var(--neon-purple);
+        }
+
+        .stats-row.highscore-row .value {
+            font-size: 1rem;
+            color: var(--neon-purple);
+            text-shadow: 0 0 5px var(--neon-purple);
         }
 
         /* Next Piece Display */
@@ -510,7 +579,7 @@
             font-size: 2.5rem;
             color: var(--neon-pink);
             margin-bottom: 10px;
-            animation: neonPulse 1s ease-in-out infinite;
+            animation: neonPulse 4s ease-in-out infinite;
             letter-spacing: 5px;
         }
 
@@ -543,27 +612,224 @@
             letter-spacing: 5px;
         }
 
-        /* High Score Display */
-        .high-score {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 8px 15px;
-            border-radius: 4px;
-            border: 1px solid var(--neon-purple);
-        }
-
-        .high-score .label {
-            font-size: 0.5rem;
-            color: var(--neon-purple);
+        /* Game Over overlay - high score */
+        .overlay .high-score-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
             letter-spacing: 2px;
+            margin-top: 15px;
         }
 
-        .high-score .value {
-            font-size: 0.9rem;
+        .overlay .high-score-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            color: var(--neon-purple);
+            text-shadow: 0 0 10px var(--neon-purple);
+            margin-bottom: 25px;
+        }
+
+        /* New Record animation */
+        .new-record {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
             color: var(--neon-yellow);
-            font-weight: 700;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            animation: newRecordPulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes newRecordPulse {
+            0% {
+                text-shadow: 0 0 10px var(--neon-yellow);
+                transform: scale(1);
+            }
+            100% {
+                text-shadow: 0 0 30px var(--neon-yellow), 0 0 60px var(--neon-yellow);
+                transform: scale(1.1);
+            }
+        }
+
+        /* Combo Display */
+        .combo-display {
+            border-color: var(--neon-pink);
+            background: linear-gradient(135deg, rgba(255, 42, 109, 0.15), #0a0a15);
+        }
+
+        .combo-display .label {
+            color: var(--neon-pink);
+            text-shadow: 0 0 5px var(--neon-pink);
+        }
+
+        .combo-display .value {
+            color: var(--neon-pink);
+            text-shadow:
+                0 0 5px var(--neon-pink),
+                0 0 10px var(--neon-pink),
+                0 0 20px var(--neon-pink);
+        }
+
+        @keyframes comboPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.8); }
+            100% { transform: scale(1); }
+        }
+
+        .combo-active {
+            animation: comboPulse 0.4s ease-out;
+        }
+
+        /* Combo 边框闪烁 */
+        @keyframes comboFlash {
+            0%, 100% {
+                border-color: var(--neon-cyan);
+                box-shadow: 0 0 20px var(--neon-cyan), inset 0 0 30px rgba(5, 217, 232, 0.1);
+            }
+            25% {
+                border-color: var(--neon-pink);
+                box-shadow: 0 0 40px var(--neon-pink), inset 0 0 50px rgba(255, 42, 109, 0.2);
+            }
+            50% {
+                border-color: var(--neon-yellow);
+                box-shadow: 0 0 50px var(--neon-yellow), inset 0 0 60px rgba(249, 240, 2, 0.2);
+            }
+            75% {
+                border-color: var(--neon-purple);
+                box-shadow: 0 0 40px var(--neon-purple), inset 0 0 50px rgba(211, 0, 197, 0.2);
+            }
+        }
+
+        .combo-flash {
+            animation: comboFlash 0.5s ease-out;
+        }
+
+        /* Combo 文字弹出 */
+        @keyframes comboTextPop {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.3);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            40% {
+                transform: translate(-50%, -60%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -120%) scale(0.8);
+            }
+        }
+
+        .combo-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 2.5rem;
+            color: var(--neon-yellow);
+            text-shadow:
+                0 0 10px var(--neon-yellow),
+                0 0 20px var(--neon-yellow),
+                0 0 40px var(--neon-yellow),
+                0 0 80px var(--neon-pink);
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            letter-spacing: 3px;
+        }
+
+        .combo-text.active {
+            animation: comboTextPop 0.8s ease-out forwards;
+        }
+
+        .combo-text.level-high {
+            font-size: 3.5rem;
+            color: #fff;
+            text-shadow:
+                0 0 15px var(--neon-yellow),
+                0 0 30px var(--neon-pink),
+                0 0 60px var(--neon-purple),
+                0 0 100px var(--neon-cyan);
+        }
+
+        /* Combo 颜色等级 */
+        .combo-level-2 .value { color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink); }
+        .combo-level-3 .value { color: #ff6b35; text-shadow: 0 0 10px #ff6b35, 0 0 20px #ff6b35; }
+        .combo-level-4 .value { color: var(--neon-yellow); text-shadow: 0 0 15px var(--neon-yellow), 0 0 30px var(--neon-yellow); }
+        .combo-level-5 .value {
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-yellow), var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 10px var(--neon-pink)) drop-shadow(0 0 20px var(--neon-cyan));
+        }
+
+        /* 单次多行提示颜色 */
+        .combo-text.line-double {
+            color: var(--neon-cyan);
+            text-shadow:
+                0 0 10px var(--neon-cyan),
+                0 0 20px var(--neon-cyan),
+                0 0 40px var(--neon-cyan);
+        }
+        .combo-text.line-triple {
+            color: var(--neon-purple);
+            text-shadow:
+                0 0 10px var(--neon-purple),
+                0 0 20px var(--neon-purple),
+                0 0 40px var(--neon-purple),
+                0 0 60px var(--neon-pink);
+        }
+        .combo-text.line-tetris {
+            font-size: 3.5rem;
+            color: var(--neon-yellow);
+            text-shadow:
+                0 0 15px var(--neon-yellow),
+                0 0 30px var(--neon-yellow),
+                0 0 60px var(--neon-pink),
+                0 0 100px var(--neon-cyan);
+        }
+
+        /* Hold Display */
+        .hold-display {
+            background: #0a0a15;
+            border: 2px solid var(--neon-cyan);
+            border-radius: 6px;
+            padding: 10px;
+            box-shadow: 0 0 15px rgba(5, 217, 232, 0.3);
+        }
+
+        .hold-display .label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.65rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+            text-shadow: 0 0 5px var(--neon-cyan);
+            text-align: center;
+        }
+
+        #holdCanvas {
+            display: block;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        /* Hold 锁定时变暗 */
+        .hold-display.locked {
+            opacity: 0.5;
+            border-color: #444;
+        }
+
+        .hold-display.locked .label {
+            color: #666;
+            text-shadow: none;
         }
 
         /* Mobile Controls */
@@ -646,6 +912,105 @@
             50% { transform: translateX(5px) rotate(1deg); }
             75% { transform: translateX(-3px) rotate(-0.5deg); }
         }
+
+        /* Audio Control Panel */
+        .audio-control {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #2a2a4e;
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+
+        .audio-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .audio-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .audio-row .label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.55rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 32px;
+            flex-shrink: 0;
+        }
+
+        .audio-toggle {
+            background: linear-gradient(180deg, #3a3a5e 0%, #2a2a4e 100%);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 4px;
+            color: var(--neon-cyan);
+            font-size: 0.75rem;
+            width: 28px;
+            height: 24px;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 2px 0 #1a1a2e;
+            flex-shrink: 0;
+        }
+
+        .audio-toggle:hover {
+            background: linear-gradient(180deg, #4a4a6e 0%, #3a3a5e 100%);
+            box-shadow: 0 0 8px var(--neon-cyan);
+        }
+
+        .audio-toggle.muted {
+            border-color: #555;
+            color: #555;
+            box-shadow: none;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 4px;
+            background: #1a1a2e;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px var(--neon-cyan);
+            transition: transform 0.1s;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 6px var(--neon-cyan);
+        }
+
+        .audio-row.muted .volume-slider {
+            opacity: 0.4;
+        }
+
+        .audio-row.muted .label {
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -664,6 +1029,7 @@
             </div>
             <div class="canvas-wrapper">
                 <canvas id="gameCanvas" width="300" height="600"></canvas>
+                <div class="combo-text" id="comboText"></div>
             </div>
             <div class="mobile-controls">
                 <button class="mobile-btn" id="btnLeft">◀</button>
@@ -674,50 +1040,66 @@
         </div>
 
         <div class="side-panel">
-            <div class="info-display">
-                <div class="label">SCORE</div>
-                <div class="value" id="score">0</div>
+            <!-- Compact Stats Panel -->
+            <div class="stats-panel">
+                <div class="stats-row score-row">
+                    <span class="label">SCORE</span>
+                    <span class="value" id="score">0</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">LEVEL</span>
+                    <span class="value" id="level">1</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">LINES</span>
+                    <span class="value" id="lines">0</span>
+                </div>
+                <div class="stats-row highscore-row">
+                    <span class="label">HIGH</span>
+                    <span class="value" id="highScore">0</span>
+                </div>
             </div>
 
-            <div class="info-display">
-                <div class="label">LEVEL</div>
-                <div class="value" id="level">1</div>
+            <div class="info-display combo-display" id="comboDisplay" style="display: none;">
+                <div class="label">COMBO</div>
+                <div class="value" id="combo">0</div>
             </div>
 
-            <div class="info-display">
-                <div class="label">LINES</div>
-                <div class="value" id="lines">0</div>
+            <div class="hold-display" id="holdDisplay">
+                <div class="label">HOLD</div>
+                <canvas id="holdCanvas" width="80" height="80"></canvas>
             </div>
 
             <div class="next-display">
                 <div class="label">NEXT</div>
-                <canvas id="nextCanvas" width="100" height="100"></canvas>
+                <canvas id="nextCanvas" width="80" height="200"></canvas>
             </div>
 
             <button class="btn-arcade btn-start" id="startBtn">
                 ▶ START
             </button>
-            <button class="btn-arcade btn-pause" id="pauseBtn">
-                ⏸ PAUSE
-            </button>
+
+            <div class="audio-control">
+                <div class="audio-row" id="sfxRow">
+                    <span class="label">SFX</span>
+                    <button class="audio-toggle" id="sfxToggle" title="Toggle Sound Effects">🔊</button>
+                    <input type="range" class="volume-slider" id="sfxVolume" min="0" max="100" value="50">
+                </div>
+            </div>
 
             <div class="controls-panel">
                 <h3>CONTROLS</h3>
                 <div class="key-row">
-                    <span class="key-btn">← →</span>
-                    <span>MOVE</span>
-                </div>
-                <div class="key-row">
-                    <span class="key-btn">↑</span>
-                    <span>ROTATE</span>
-                </div>
-                <div class="key-row">
-                    <span class="key-btn">↓</span>
-                    <span>DROP</span>
+                    <span class="key-btn">← → ↑ ↓</span>
+                    <span>移动/旋转</span>
                 </div>
                 <div class="key-row">
                     <span class="key-btn">SPACE</span>
-                    <span>HARD DROP</span>
+                    <span>硬降</span>
+                </div>
+                <div class="key-row">
+                    <span class="key-btn">C</span>
+                    <span>暂存</span>
                 </div>
             </div>
         </div>
@@ -728,8 +1110,13 @@
         <div class="overlay-content">
             <h2>GAME OVER</h2>
             <div class="jp-gameover">ゲームオーバー</div>
+            <div class="new-record" id="newRecordBanner" style="display: none;">
+                ★ NEW RECORD ★
+            </div>
             <div class="final-score-label">FINAL SCORE</div>
             <div class="final-score" id="finalScore">0</div>
+            <div class="high-score-label">HIGH SCORE</div>
+            <div class="high-score-value" id="finalHighScore">0</div>
             <button class="btn-arcade btn-start" id="restartBtn">
                 ▶ PLAY AGAIN
             </button>
@@ -737,15 +1124,303 @@
     </div>
 
     <script>
-        // Create rain effect
+        // ============= Sound Manager =============
+        const SoundManager = {
+            audioContext: null,
+            masterGain: null,
+            sfxGain: null,
+            sfxEnabled: true,
+            sfxVolume: 0.5,
+            isInitialized: false,
+            // 音符频率表
+            notes: {
+                C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+                C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+                C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77
+            },
+
+            init() {
+                if (this.isInitialized) return;
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.audioContext.createGain();
+                    this.masterGain.gain.value = 1;
+                    this.masterGain.connect(this.audioContext.destination);
+
+                    this.sfxGain = this.audioContext.createGain();
+                    this.sfxGain.gain.value = this.sfxVolume;
+                    this.sfxGain.connect(this.masterGain);
+
+                    this.isInitialized = true;
+                } catch (e) {
+                    console.warn('Web Audio API not supported:', e);
+                }
+            },
+
+            resume() {
+                if (!this.audioContext || this.audioContext.state !== 'suspended') return Promise.resolve();
+                try {
+                    return this.audioContext.resume().catch(() => {});
+                } catch (e) {
+                    return Promise.resolve();
+                }
+            },
+
+            setSfxVolume(v) {
+                this.sfxVolume = Math.max(0, Math.min(1, v));
+                if (this.sfxGain) {
+                    this.sfxGain.gain.setTargetAtTime(this.sfxVolume, this.audioContext.currentTime, 0.01);
+                }
+            },
+
+            toggleSfx() {
+                this.sfxEnabled = !this.sfxEnabled;
+                if (this.sfxGain) {
+                    this.sfxGain.gain.setTargetAtTime(this.sfxEnabled ? this.sfxVolume : 0, this.audioContext.currentTime, 0.01);
+                }
+            },
+
+            // ====== 音效 ======
+            _playSfx(freq, duration, type = 'sine', volume = 0.1, freqEnd = null) {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+
+                const now = this.audioContext.currentTime;
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                if (freqEnd) {
+                    osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration);
+                }
+
+                // 柔和包络：快速淡入，指数淡出
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(volume, now + 0.005);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+                osc.start(now);
+                osc.stop(now + duration);
+            },
+
+            playMove() {
+                this._playSfx(this.notes.A4, 0.03, 'sine', 0.08);
+            },
+
+            playRotate() {
+                this._playSfx(this.notes.C5, 0.06, 'sine', 0.1, this.notes.E5);
+            },
+
+            playSoftDrop() {
+                this._playSfx(this.notes.E4, 0.025, 'sine', 0.05);
+            },
+
+            playHardDrop() {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+                const now = this.audioContext.currentTime;
+
+                // 下降音
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(this.notes.G4, now);
+                osc.frequency.exponentialRampToValueAtTime(this.notes.C3, now + 0.1);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.15, now + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            },
+
+            playLock() {
+                this._playSfx(this.notes.G4, 0.05, 'sine', 0.1);
+            },
+
+            playLineClear(linesCleared) {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+                const now = this.audioContext.currentTime;
+
+                // 根据消行数量选择和弦
+                const chords = {
+                    1: [this.notes.C4, this.notes.E4],
+                    2: [this.notes.C4, this.notes.E4, this.notes.G4],
+                    3: [this.notes.C4, this.notes.E4, this.notes.G4, this.notes.C5],
+                    4: [this.notes.C4, this.notes.E4, this.notes.G4, this.notes.C5, this.notes.E5]
+                };
+
+                const notes = chords[linesCleared] || chords[1];
+                const duration = 0.15 + linesCleared * 0.05;
+
+                notes.forEach((freq, i) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    const delay = i * 0.02;
+                    gain.gain.setValueAtTime(0, now + delay);
+                    gain.gain.linearRampToValueAtTime(0.08, now + delay + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.sfxGain);
+                    osc.start(now + delay);
+                    osc.stop(now + delay + duration);
+                });
+            },
+
+            playCombo(comboCount) {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+
+                const now = this.audioContext.currentTime;
+                // 基础频率随 combo 递增，每次升 3 半音（更明显）
+                const baseFreq = this.notes.C4;
+                const rootFreq = baseFreq * Math.pow(1.059463, comboCount * 3);
+                const fifthFreq = rootFreq * 1.5; // 五度
+                const octaveFreq = rootFreq * 2;  // 八度
+
+                // 基础参数：更长更响
+                const baseDuration = 0.15;
+                const baseVolume = 0.2;
+
+                // 低 combo (2-3): 双音
+                if (comboCount <= 3) {
+                    this._playSfx(Math.min(rootFreq, 1200), baseDuration, 'sine', baseVolume);
+                    setTimeout(() => {
+                        this._playSfx(Math.min(fifthFreq, 1500), baseDuration * 0.8, 'sine', baseVolume * 0.7);
+                    }, 30);
+                }
+                // 中 combo (4-6): 三音和弦 + 延音
+                else if (comboCount <= 6) {
+                    const duration = baseDuration * 1.3;
+                    this._playSfx(Math.min(rootFreq, 1200), duration, 'sine', baseVolume);
+                    setTimeout(() => {
+                        this._playSfx(Math.min(fifthFreq, 1500), duration * 0.9, 'sine', baseVolume * 0.8);
+                    }, 25);
+                    setTimeout(() => {
+                        this._playSfx(Math.min(octaveFreq, 2000), duration * 0.7, 'sine', baseVolume * 0.6);
+                    }, 50);
+                }
+                // 高 combo (7+): 和弦 + 高频闪亮音 + 低频冲击
+                else {
+                    const duration = baseDuration * 1.5;
+                    const volume = baseVolume * 1.2;
+
+                    // 低频冲击
+                    const bassOsc = this.audioContext.createOscillator();
+                    const bassGain = this.audioContext.createGain();
+                    bassOsc.type = 'sine';
+                    bassOsc.frequency.value = rootFreq / 2;
+                    bassGain.gain.setValueAtTime(0, now);
+                    bassGain.gain.linearRampToValueAtTime(volume * 0.5, now + 0.02);
+                    bassGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(this.sfxGain);
+                    bassOsc.start(now);
+                    bassOsc.stop(now + duration);
+
+                    // 主和弦
+                    this._playSfx(Math.min(rootFreq, 1200), duration, 'sine', volume);
+                    setTimeout(() => {
+                        this._playSfx(Math.min(fifthFreq, 1500), duration * 0.9, 'sine', volume * 0.8);
+                    }, 20);
+                    setTimeout(() => {
+                        this._playSfx(Math.min(octaveFreq, 2000), duration * 0.8, 'sine', volume * 0.7);
+                    }, 40);
+
+                    // 高频闪亮装饰音
+                    setTimeout(() => {
+                        const sparkleFreq = octaveFreq * 1.5;
+                        this._playSfx(Math.min(sparkleFreq, 2500), 0.08, 'sine', volume * 0.4);
+                    }, 80);
+                    setTimeout(() => {
+                        const sparkleFreq = octaveFreq * 2;
+                        this._playSfx(Math.min(sparkleFreq, 3000), 0.06, 'sine', volume * 0.3);
+                    }, 120);
+                }
+            },
+
+            playHold() {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+                const now = this.audioContext.currentTime;
+
+                // 两段音
+                this._playSfx(this.notes.E4, 0.04, 'sine', 0.1);
+                setTimeout(() => {
+                    this._playSfx(this.notes.G4, 0.04, 'sine', 0.1);
+                }, 40);
+            },
+
+            playGameStart() {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+                const now = this.audioContext.currentTime;
+
+                // 上升琶音 C-E-G-C
+                const notes = [this.notes.C4, this.notes.E4, this.notes.G4, this.notes.C5];
+                notes.forEach((freq, i) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    const delay = i * 0.08;
+                    gain.gain.setValueAtTime(0, now + delay);
+                    gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
+
+                    osc.connect(gain);
+                    gain.connect(this.sfxGain);
+                    osc.start(now + delay);
+                    osc.stop(now + delay + 0.15);
+                });
+            },
+
+            playGameOver() {
+                if (!this.isInitialized || !this.sfxEnabled) return;
+                const now = this.audioContext.currentTime;
+
+                // 下行音阶 C-G-E-C
+                const notes = [this.notes.C5, this.notes.G4, this.notes.E4, this.notes.C4, this.notes.C3];
+                notes.forEach((freq, i) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    const delay = i * 0.15;
+                    gain.gain.setValueAtTime(0, now + delay);
+                    gain.gain.linearRampToValueAtTime(0.1, now + delay + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.sfxGain);
+                    osc.start(now + delay);
+                    osc.stop(now + delay + 0.2);
+                });
+            },
+
+            playPause() {
+                this._playSfx(this.notes.G4, 0.06, 'sine', 0.1, this.notes.E4);
+            },
+
+            playResume() {
+                this._playSfx(this.notes.E4, 0.06, 'sine', 0.1, this.notes.G4);
+            }
+        };
+
+        // Create rain effect (柔和版：更少、更慢、更淡)
         const rainContainer = document.getElementById('rainContainer');
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 25; i++) {
             const drop = document.createElement('div');
             drop.className = 'rain-drop';
             drop.style.left = Math.random() * 100 + '%';
-            drop.style.animationDelay = Math.random() * 2 + 's';
-            drop.style.animationDuration = (1 + Math.random()) + 's';
-            drop.style.height = (50 + Math.random() * 50) + 'px';
+            drop.style.animationDelay = Math.random() * 4 + 's';
+            drop.style.animationDuration = (4 + Math.random() * 3) + 's';
+            drop.style.height = (40 + Math.random() * 30) + 'px';
             rainContainer.appendChild(drop);
         }
 
@@ -779,7 +1454,8 @@
 
         // Game state
         let canvas, ctx, nextCanvas, nextCtx;
-        let board, currentPiece, nextPiece;
+        let board, currentPiece;
+        let nextPieces = []; // 3个预览方块
         let score, level, lines;
         let gameLoop, dropCounter, dropInterval;
         let lastTime = 0;
@@ -788,15 +1464,29 @@
         let isPlaying = false;
         let lineClearEffect = [];
 
+        // High score
+        let highScore = 0;
+        const HIGH_SCORE_KEY = 'tetris_cyber_high_score';
+
+        // Combo system
+        let combo = 0;
+        let comboEffectTimeout = null;
+
+        // Hold system
+        let holdPiece = null;
+        let canHold = true;
+        let holdCanvas, holdCtx;
+
         // Initialize
         function init() {
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
             nextCanvas = document.getElementById('nextCanvas');
             nextCtx = nextCanvas.getContext('2d');
+            holdCanvas = document.getElementById('holdCanvas');
+            holdCtx = holdCanvas.getContext('2d');
 
-            document.getElementById('startBtn').addEventListener('click', startGame);
-            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            document.getElementById('startBtn').addEventListener('click', handleStartBtn);
             document.getElementById('restartBtn').addEventListener('click', startGame);
 
             document.addEventListener('keydown', handleKeyPress);
@@ -805,7 +1495,7 @@
             document.getElementById('btnLeft').addEventListener('click', () => movePiece(-1));
             document.getElementById('btnRight').addEventListener('click', () => movePiece(1));
             document.getElementById('btnRotate').addEventListener('click', rotatePiece);
-            document.getElementById('btnDown').addEventListener('click', dropPiece);
+            document.getElementById('btnDown').addEventListener('click', () => dropPiece(true));
 
             // Touch swipe
             let touchStartX = null;
@@ -822,7 +1512,7 @@
                     if (dx > 30) movePiece(1);
                     else if (dx < -30) movePiece(-1);
                 } else {
-                    if (dy > 30) dropPiece();
+                    if (dy > 30) dropPiece(true);
                     else if (dy < -30) rotatePiece();
                 }
 
@@ -830,7 +1520,22 @@
                 touchStartY = null;
             });
 
+            // Initialize audio system
+            SoundManager.init();
+
+            // Audio control events
+            document.getElementById('sfxVolume').addEventListener('input', (e) => {
+                SoundManager.setSfxVolume(e.target.value / 100);
+            });
+            document.getElementById('sfxToggle').addEventListener('click', function() {
+                SoundManager.toggleSfx();
+                this.textContent = SoundManager.sfxEnabled ? '🔊' : '🔇';
+                this.classList.toggle('muted', !SoundManager.sfxEnabled);
+                document.getElementById('sfxRow').classList.toggle('muted', !SoundManager.sfxEnabled);
+            });
+
             drawEmptyBoard();
+            loadHighScore();
         }
 
         function drawEmptyBoard() {
@@ -858,7 +1563,10 @@
             }
         }
 
-        function startGame() {
+        async function startGame() {
+            // 先触发 resume（不阻塞游戏初始化），但确保开局音效在 resume 后播放
+            const audioReady = SoundManager.resume();
+
             board = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
             score = 0;
             level = 1;
@@ -870,16 +1578,35 @@
             isPlaying = true;
             lineClearEffect = [];
 
+            // 更新按钮状态
+            document.getElementById('startBtn').innerHTML = '⏸ PAUSE';
+
+            // 重置 combo
+            combo = 0;
+            document.getElementById('comboDisplay').style.display = 'none';
+
+            // 重置 hold
+            holdPiece = null;
+            canHold = true;
+            document.getElementById('holdDisplay').classList.remove('locked');
+            drawHoldPiece();
+
             updateDisplay();
             document.getElementById('gameOverlay').classList.remove('active');
 
             currentPiece = createPiece();
-            nextPiece = createPiece();
-            drawNextPiece();
+            nextPieces = [createPiece(), createPiece(), createPiece()];
+            drawNextPieces();
 
             if (gameLoop) cancelAnimationFrame(gameLoop);
             lastTime = 0;
+
             update();
+
+            await audioReady;
+            if (isPlaying && !isGameOver) {
+                SoundManager.playGameStart();
+            }
         }
 
         function createPiece() {
@@ -1031,7 +1758,7 @@
             }
         }
 
-        function drawNextPiece() {
+        function drawNextPieces() {
             // Clear with dark gradient
             const gradient = nextCtx.createLinearGradient(0, 0, 0, nextCanvas.height);
             gradient.addColorStop(0, '#0a0a18');
@@ -1039,13 +1766,79 @@
             nextCtx.fillStyle = gradient;
             nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
 
-            if (!nextPiece) return;
+            if (!nextPieces.length) return;
 
-            const shape = nextPiece.shape;
-            const color = BLOCK_COLORS[nextPiece.type];
-            const size = 22;
-            const offsetX = (nextCanvas.width - shape[0].length * size) / 2;
-            const offsetY = (nextCanvas.height - shape.length * size) / 2;
+            const size = 16;
+            const sectionHeight = 66; // 每个方块区域高度
+
+            for (let i = 0; i < nextPieces.length; i++) {
+                const piece = nextPieces[i];
+                const shape = piece.shape;
+                const color = BLOCK_COLORS[piece.type];
+
+                const offsetX = (nextCanvas.width - shape[0].length * size) / 2;
+                const offsetY = i * sectionHeight + (sectionHeight - shape.length * size) / 2;
+
+                // 第一个最亮，后面逐渐变暗
+                const alpha = 1 - i * 0.25;
+
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col]) {
+                            const padding = 2;
+                            const blockX = offsetX + col * size + padding;
+                            const blockY = offsetY + row * size + padding;
+                            const blockSize = size - padding * 2;
+
+                            nextCtx.globalAlpha = alpha;
+                            nextCtx.shadowColor = color.glow;
+                            nextCtx.shadowBlur = 10;
+
+                            const grad = nextCtx.createLinearGradient(
+                                blockX, blockY,
+                                blockX + blockSize, blockY + blockSize
+                            );
+                            grad.addColorStop(0, color.base);
+                            grad.addColorStop(1, color.dark);
+                            nextCtx.fillStyle = grad;
+                            nextCtx.fillRect(blockX, blockY, blockSize, blockSize);
+
+                            nextCtx.strokeStyle = color.base;
+                            nextCtx.lineWidth = 1;
+                            nextCtx.strokeRect(blockX, blockY, blockSize, blockSize);
+
+                            nextCtx.shadowBlur = 0;
+                            nextCtx.globalAlpha = 1;
+                        }
+                    }
+                }
+
+                // 分隔线（除了最后一个）
+                if (i < nextPieces.length - 1) {
+                    nextCtx.strokeStyle = 'rgba(5, 217, 232, 0.2)';
+                    nextCtx.beginPath();
+                    nextCtx.moveTo(10, (i + 1) * sectionHeight);
+                    nextCtx.lineTo(nextCanvas.width - 10, (i + 1) * sectionHeight);
+                    nextCtx.stroke();
+                }
+            }
+        }
+
+        function drawHoldPiece() {
+            // 清空画布
+            const gradient = holdCtx.createLinearGradient(0, 0, 0, holdCanvas.height);
+            gradient.addColorStop(0, '#0a0a18');
+            gradient.addColorStop(1, '#05050d');
+            holdCtx.fillStyle = gradient;
+            holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+
+            if (!holdPiece) return;
+
+            const shape = SHAPES[holdPiece.type];
+            const color = BLOCK_COLORS[holdPiece.type];
+            const size = 18;
+            const offsetX = (holdCanvas.width - shape[0].length * size) / 2;
+            const offsetY = (holdCanvas.height - shape.length * size) / 2;
 
             for (let row = 0; row < shape.length; row++) {
                 for (let col = 0; col < shape[row].length; col++) {
@@ -1055,28 +1848,62 @@
                         const blockY = offsetY + row * size + padding;
                         const blockSize = size - padding * 2;
 
-                        // Glow
-                        nextCtx.shadowColor = color.glow;
-                        nextCtx.shadowBlur = 12;
+                        holdCtx.shadowColor = color.glow;
+                        holdCtx.shadowBlur = 12;
 
-                        // Gradient fill
-                        const grad = nextCtx.createLinearGradient(
+                        const grad = holdCtx.createLinearGradient(
                             blockX, blockY,
                             blockX + blockSize, blockY + blockSize
                         );
                         grad.addColorStop(0, color.base);
                         grad.addColorStop(1, color.dark);
-                        nextCtx.fillStyle = grad;
-                        nextCtx.fillRect(blockX, blockY, blockSize, blockSize);
+                        holdCtx.fillStyle = grad;
+                        holdCtx.fillRect(blockX, blockY, blockSize, blockSize);
 
-                        // Border
-                        nextCtx.strokeStyle = color.base;
-                        nextCtx.lineWidth = 1;
-                        nextCtx.strokeRect(blockX, blockY, blockSize, blockSize);
+                        holdCtx.strokeStyle = color.base;
+                        holdCtx.lineWidth = 1;
+                        holdCtx.strokeRect(blockX, blockY, blockSize, blockSize);
 
-                        nextCtx.shadowBlur = 0;
+                        holdCtx.shadowBlur = 0;
                     }
                 }
+            }
+        }
+
+        function holdCurrentPiece() {
+            if (isPaused || isGameOver || !currentPiece || !canHold) return;
+            if (holdPiece === null && nextPieces.length === 0) return;
+
+            SoundManager.playHold();
+
+            canHold = false; // 本回合不能再 hold
+            document.getElementById('holdDisplay').classList.add('locked');
+
+            if (holdPiece === null) {
+                // 首次 hold：保存当前，取下一个
+                holdPiece = { type: currentPiece.type };
+                currentPiece = nextPieces.shift();
+                currentPiece.x = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
+                currentPiece.y = 0;
+                nextPieces.push(createPiece());
+                drawNextPieces();
+            } else {
+                // 交换 hold 和当前
+                const tempType = currentPiece.type;
+                currentPiece = {
+                    shape: SHAPES[holdPiece.type].map(row => [...row]),
+                    type: holdPiece.type,
+                    x: Math.floor(COLS / 2) - Math.floor(SHAPES[holdPiece.type][0].length / 2),
+                    y: 0
+                };
+                holdPiece = { type: tempType };
+            }
+
+            drawHoldPiece();
+
+            // 检查新方块是否立即碰撞（游戏结束）
+            if (collision(currentPiece.shape, currentPiece.x, currentPiece.y)) {
+                gameOver();
             }
         }
 
@@ -1098,6 +1925,7 @@
             if (isPaused || isGameOver || !currentPiece) return;
             if (!collision(currentPiece.shape, currentPiece.x + dir, currentPiece.y)) {
                 currentPiece.x += dir;
+                SoundManager.playMove();
             }
         }
 
@@ -1121,13 +1949,17 @@
 
             currentPiece.shape = rotated;
             currentPiece.x += kick;
+            SoundManager.playRotate();
         }
 
-        function dropPiece() {
+        function dropPiece(playSfx = false) {
             if (isPaused || isGameOver || !currentPiece) return;
 
             if (!collision(currentPiece.shape, currentPiece.x, currentPiece.y + 1)) {
                 currentPiece.y++;
+                if (playSfx) {
+                    SoundManager.playSoftDrop();
+                }
             } else {
                 lockPiece();
             }
@@ -1136,6 +1968,7 @@
         function hardDrop() {
             if (isPaused || isGameOver || !currentPiece) return;
 
+            SoundManager.playHardDrop();
             while (!collision(currentPiece.shape, currentPiece.x, currentPiece.y + 1)) {
                 currentPiece.y++;
                 score += 2;
@@ -1145,6 +1978,8 @@
         }
 
         function lockPiece() {
+            SoundManager.playLock();
+
             for (let row = 0; row < currentPiece.shape.length; row++) {
                 for (let col = 0; col < currentPiece.shape[row].length; col++) {
                     if (currentPiece.shape[row][col]) {
@@ -1171,23 +2006,59 @@
             }
 
             if (linesCleared > 0) {
+                // 播放消行音效
+                SoundManager.playLineClear(linesCleared);
+
                 // Screen shake effect
                 document.querySelector('.canvas-wrapper').classList.add('shake');
                 setTimeout(() => {
                     document.querySelector('.canvas-wrapper').classList.remove('shake');
                 }, 300);
 
-                const points = [0, 100, 300, 500, 800];
-                score += points[linesCleared] * level;
+                // 单次多行提示（立即显示）
+                if (linesCleared >= 2) {
+                    showLineClearText(linesCleared);
+                }
+
+                // Combo 逻辑
+                combo++;
+
+                // 基础分数
+                const basePoints = [0, 100, 300, 500, 800];
+                let earnedPoints = basePoints[linesCleared] * level;
+
+                // Combo 额外分数（从第2次连击开始）
+                if (combo > 1) {
+                    const comboBonus = (combo - 1) * 50 * level;
+                    earnedPoints += comboBonus;
+                    SoundManager.playCombo(combo);
+                }
+
+                score += earnedPoints;
                 lines += linesCleared;
-                level = Math.floor(lines / 10) + 1;
+                const newLevel = Math.floor(lines / 10) + 1;
+                level = newLevel;
                 dropInterval = Math.max(100, 1000 - (level - 1) * 80);
                 updateDisplay();
+                // 如果有多行提示，延迟显示 combo；否则立即显示
+                updateComboDisplay(linesCleared >= 2 ? 700 : 0);
+            } else {
+                // 没有消行，重置 combo
+                if (combo > 0) {
+                    combo = 0;
+                    updateComboDisplay();
+                }
             }
 
-            currentPiece = nextPiece;
-            nextPiece = createPiece();
-            drawNextPiece();
+            // 重置 Hold 锁定状态
+            canHold = true;
+            document.getElementById('holdDisplay').classList.remove('locked');
+
+            currentPiece = nextPieces.shift(); // 取出第一个
+            currentPiece.x = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
+            currentPiece.y = 0;
+            nextPieces.push(createPiece()); // 补充一个新的
+            drawNextPieces();
 
             if (collision(currentPiece.shape, currentPiece.x, currentPiece.y)) {
                 gameOver();
@@ -1197,20 +2068,199 @@
         function gameOver() {
             isGameOver = true;
             isPlaying = false;
+
+            // 恢复按钮状态
+            document.getElementById('startBtn').innerHTML = '▶ START';
+
+            SoundManager.playGameOver();
+
+            const isNewRecord = saveHighScore();
+
             document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalHighScore').textContent = highScore.toString().padStart(6, '0');
+            document.getElementById('highScore').textContent = highScore.toString().padStart(6, '0');
+
+            const newRecordBanner = document.getElementById('newRecordBanner');
+            newRecordBanner.style.display = isNewRecord ? 'block' : 'none';
+
             document.getElementById('gameOverlay').classList.add('active');
+        }
+
+        function handleStartBtn() {
+            if (!isPlaying || isGameOver) {
+                startGame();
+            } else {
+                togglePause();
+            }
         }
 
         function togglePause() {
             if (isGameOver || !isPlaying) return;
             isPaused = !isPaused;
-            document.getElementById('pauseBtn').innerHTML = isPaused ? '▶ RESUME' : '⏸ PAUSE';
+            document.getElementById('startBtn').innerHTML = isPaused ? '▶ RESUME' : '⏸ PAUSE';
+
+            if (isPaused) {
+                SoundManager.playPause();
+            } else {
+                SoundManager.playResume();
+            }
         }
 
         function updateDisplay() {
             document.getElementById('score').textContent = score.toString().padStart(6, '0');
             document.getElementById('level').textContent = level;
             document.getElementById('lines').textContent = lines;
+        }
+
+        function loadHighScore() {
+            try {
+                const saved = localStorage.getItem(HIGH_SCORE_KEY);
+                highScore = saved ? (parseInt(saved, 10) || 0) : 0;
+            } catch (e) {
+                highScore = 0;
+            }
+            document.getElementById('highScore').textContent = highScore.toString().padStart(6, '0');
+        }
+
+        function saveHighScore() {
+            if (score <= highScore) return false;
+
+            highScore = score;
+            try {
+                localStorage.setItem(HIGH_SCORE_KEY, highScore.toString());
+            } catch (e) {
+                // ignore: 仍保留内存高分
+            }
+            return true; // 破纪录
+        }
+
+        // 单次多行提示效果
+        function showLineClearText(linesCleared) {
+            if (linesCleared < 2) return;
+
+            const comboText = document.getElementById('comboText');
+            if (!comboText) return;
+
+            // 根据消行数设置文字和样式
+            const config = {
+                2: { text: 'DOUBLE!', className: 'line-double' },
+                3: { text: 'TRIPLE!', className: 'line-triple' },
+                4: { text: 'TETRIS!', className: 'line-tetris' }
+            };
+
+            const cfg = config[linesCleared];
+            if (!cfg) return;
+
+            comboText.textContent = cfg.text;
+
+            // 清除之前的样式类
+            comboText.classList.remove('level-high', 'line-double', 'line-triple', 'line-tetris');
+            comboText.classList.add(cfg.className);
+
+            // 触发动画
+            comboText.classList.remove('active');
+            void comboText.offsetWidth;
+            comboText.classList.add('active');
+
+            // 动画结束后移除
+            setTimeout(() => {
+                comboText.classList.remove('active', cfg.className);
+            }, 800);
+        }
+
+        // Combo 弹出文字效果
+        function showComboText(comboCount) {
+            const comboText = document.getElementById('comboText');
+            if (!comboText) return;
+
+            // 设置文字内容
+            comboText.textContent = `${comboCount}x COMBO!`;
+
+            // 清除单次多行样式，应用 combo 样式
+            comboText.classList.remove('line-double', 'line-triple', 'line-tetris');
+            comboText.classList.remove('level-high');
+            if (comboCount >= 5) {
+                comboText.classList.add('level-high');
+            }
+
+            // 触发动画
+            comboText.classList.remove('active');
+            void comboText.offsetWidth;
+            comboText.classList.add('active');
+
+            // 动画结束后移除 active
+            setTimeout(() => {
+                comboText.classList.remove('active');
+            }, 800);
+        }
+
+        // Combo 边框闪烁效果
+        function triggerComboFlash(comboCount) {
+            const canvasWrapper = document.querySelector('.canvas-wrapper');
+            if (!canvasWrapper) return;
+
+            // 移除之前的动画
+            canvasWrapper.classList.remove('combo-flash');
+            void canvasWrapper.offsetWidth;
+
+            // 根据 combo 级别调整动画时长
+            const duration = Math.min(0.3 + comboCount * 0.05, 0.8);
+            canvasWrapper.style.animationDuration = `${duration}s`;
+            canvasWrapper.classList.add('combo-flash');
+
+            // 动画结束后移除
+            setTimeout(() => {
+                canvasWrapper.classList.remove('combo-flash');
+            }, duration * 1000);
+        }
+
+        function updateComboDisplay(delay = 0) {
+            const comboDisplay = document.getElementById('comboDisplay');
+            const comboValue = document.getElementById('combo');
+
+            if (comboEffectTimeout) {
+                clearTimeout(comboEffectTimeout);
+                comboEffectTimeout = null;
+            }
+
+            if (combo > 1) {
+                const comboCount = combo;
+                comboDisplay.style.display = 'block';
+                comboValue.textContent = comboCount;
+
+                // 移除所有颜色等级
+                comboDisplay.classList.remove('combo-level-2', 'combo-level-3', 'combo-level-4', 'combo-level-5');
+
+                // 根据 combo 级别添加颜色
+                if (comboCount >= 8) {
+                    comboDisplay.classList.add('combo-level-5'); // 彩虹
+                } else if (comboCount >= 6) {
+                    comboDisplay.classList.add('combo-level-4'); // 金色
+                } else if (comboCount >= 4) {
+                    comboDisplay.classList.add('combo-level-3'); // 橙色
+                } else {
+                    comboDisplay.classList.add('combo-level-2'); // 粉色
+                }
+
+                // 触发数字动画
+                comboValue.classList.remove('combo-active');
+                void comboValue.offsetWidth;
+                comboValue.classList.add('combo-active');
+
+                // 触发弹出文字和边框闪烁（支持延迟）
+                if (delay > 0) {
+                    comboEffectTimeout = setTimeout(() => {
+                        if (combo !== comboCount) return;
+                        showComboText(comboCount);
+                        triggerComboFlash(comboCount);
+                    }, delay);
+                } else {
+                    showComboText(comboCount);
+                    triggerComboFlash(comboCount);
+                }
+            } else {
+                comboDisplay.style.display = 'none';
+            }
         }
 
         function handleKeyPress(e) {
@@ -1240,7 +2290,7 @@
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    dropPiece();
+                    dropPiece(true);
                     score += 1;
                     updateDisplay();
                     break;
@@ -1251,6 +2301,11 @@
                 case ' ':
                     e.preventDefault();
                     hardDrop();
+                    break;
+                case 'c':
+                case 'C':
+                    e.preventDefault();
+                    holdCurrentPiece();
                     break;
             }
         }
